@@ -64,6 +64,7 @@ private:
 
   STDMETHODIMP CreateCUVIDDecoder(cudaVideoCodec codec, DWORD dwWidth, DWORD dwHeight, int nBitdepth, bool bProgressiveSequence);
   STDMETHODIMP DecodeSequenceData();
+  STDMETHODIMP GetNumDecodeSurfaces(cudaVideoCodec codec, DWORD dwWidth, DWORD dwHeight);
 
   // CUDA Callbacks
   static int CUDAAPI HandleVideoSequence(void *obj, CUVIDEOFORMAT *cuvidfmt);

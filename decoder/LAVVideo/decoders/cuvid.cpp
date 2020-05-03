@@ -625,7 +625,6 @@ STDMETHODIMP CDecCuvid::InitDecoder(AVCodecID codec, const CMediaType *pmt)
   CUVIDPARSERPARAMS oVideoParserParameters;
   ZeroMemory(&oVideoParserParameters, sizeof(CUVIDPARSERPARAMS));
   oVideoParserParameters.CodecType              = cudaCodec;
-  oVideoParserParameters.ulMaxNumDecodeSurfaces = MAX_DECODE_FRAMES;
   oVideoParserParameters.ulMaxDisplayDelay      = m_DisplayDelay;
   oVideoParserParameters.pUserData              = this;
   oVideoParserParameters.pfnSequenceCallback    = CDecCuvid::HandleVideoSequence;    // Called before decoding frames and/or whenever there is a format change
@@ -707,15 +706,16 @@ STDMETHODIMP CDecCuvid::InitDecoder(AVCodecID codec, const CMediaType *pmt)
     m_bNeedSequenceCheck = (cudaCodec == cudaVideoCodec_H264 || cudaCodec == cudaVideoCodec_HEVC);
   }
 
+  BITMAPINFOHEADER* bmi = nullptr;
+  videoFormatTypeHandler(pmt->Format(), pmt->FormatType(), &bmi);
+  oVideoParserParameters.ulMaxNumDecodeSurfaces = GetNumDecodeSurfaces(codec, bmi->biWidth, bmi->biHeight);
+
   oVideoParserParameters.pExtVideoInfo = &m_VideoParserExInfo;
   CUresult oResult = cuda.cuvidCreateVideoParser(&m_hParser, &oVideoParserParameters);
   if (oResult != CUDA_SUCCESS) {
     DbgLog((LOG_ERROR, 10, L"-> Creating parser for type %d failed with code %d", cudaCodec, oResult));
     return E_FAIL;
   }
-
-  BITMAPINFOHEADER *bmi = nullptr;
-  videoFormatTypeHandler(pmt->Format(), pmt->FormatType(), &bmi);
 
   {
     hr = CreateCUVIDDecoder(cudaCodec, bmi->biWidth, bmi->biHeight, bitdepth, !m_bInterlaced);
@@ -749,7 +749,7 @@ retry:
   ZeroMemory(dci, sizeof(*dci));
   dci->ulWidth             = dwWidth;
   dci->ulHeight            = dwHeight;
-  dci->ulNumDecodeSurfaces = MAX_DECODE_FRAMES;
+  dci->ulNumDecodeSurfaces = GetNumDecodeSurfaces(codec, dwWidth, dwHeight);
   dci->CodecType           = codec;
   dci->bitDepthMinus8      = nBitdepth - 8;
   dci->ChromaFormat        = cudaVideoChromaFormat_420;
@@ -800,6 +800,40 @@ STDMETHODIMP CDecCuvid::DecodeSequenceData()
   }
 
   return S_OK;
+}
+
+STDMETHODIMP CDecCuvid::GetNumDecodeSurfaces(cudaVideoCodec codec, DWORD dwWidth, DWORD dwHeight)
+{
+    if (codec == cudaVideoCodec_H264 || codec == cudaVideoCodec_H264_SVC || codec == cudaVideoCodec_H264_MVC) {
+        // assume worst-case of 20 decode surfaces for H264
+        return 20;
+    }
+
+    if (codec == cudaVideoCodec_VP9) {
+        return 12;
+    }
+
+    if (codec == cudaVideoCodec_HEVC) {
+        // ref HEVC spec: A.4.1 General tier and level limits
+        int const MaxLumaPictureSize = 35651584; // currently assuming level 6.2, 8Kx4K
+        int const MaxDpbPicBuf = 6;
+        int const LumaPictureSize = dwWidth * dwHeight;
+
+        int MaxDpbSize;
+        if (LumaPictureSize <= (MaxLumaPictureSize >> 2))
+            MaxDpbSize = MaxDpbPicBuf * 4;
+        else if (LumaPictureSize <= (MaxLumaPictureSize >> 1))
+            MaxDpbSize = MaxDpbPicBuf * 2;
+        else if (LumaPictureSize <= ((3 * MaxLumaPictureSize) >> 2))
+            MaxDpbSize = (MaxDpbPicBuf * 4) / 3;
+        else
+            MaxDpbSize = MaxDpbPicBuf;
+
+        MaxDpbSize = MaxDpbSize < 16 ? MaxDpbSize : 16;
+        return MaxDpbSize + 4;
+    }
+
+    return 8;
 }
 
 CUVIDPARSERDISPINFO* CDecCuvid::GetNextFrame()

@@ -40,6 +40,7 @@ public:
     int level;
     int chroma;
     int bitdepth;
+    int interlaced;
   } sps;
 
 private:

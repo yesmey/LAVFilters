@@ -1181,6 +1181,7 @@ STDMETHODIMP CDecCuvid::CheckHEVCSequence(const BYTE *buffer, int buflen, int *b
     }
     if (bitdepth)
       *bitdepth = hevcParser.sps.bitdepth;
+    m_bInterlaced = hevcParser.sps.interlaced;
     DbgLog((LOG_TRACE, 10, L"-> Video seems compatible with CUVID"));
     return S_OK;
   }

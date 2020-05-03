@@ -675,7 +675,7 @@ STDMETHODIMP CDecCuvid::InitDecoder(AVCodecID codec, const CMediaType *pmt)
   m_bNeedSequenceCheck = FALSE;
   if (m_VideoParserExInfo.format.seqhdr_data_length) {
     if (cudaCodec == cudaVideoCodec_H264) {
-      hr = CheckH264Sequence(m_VideoParserExInfo.raw_seqhdr_data, m_VideoParserExInfo.format.seqhdr_data_length);
+      hr = CheckH264Sequence(m_VideoParserExInfo.raw_seqhdr_data, m_VideoParserExInfo.format.seqhdr_data_length, &bitdepth);
       if (FAILED(hr)) {
         return VFW_E_UNSUPPORTED_VIDEO;
       } else if (hr == S_FALSE) {
@@ -1146,7 +1146,7 @@ cuda_fail:
   return E_FAIL;
 }
 
-STDMETHODIMP CDecCuvid::CheckH264Sequence(const BYTE *buffer, int buflen)
+STDMETHODIMP CDecCuvid::CheckH264Sequence(const BYTE *buffer, int buflen, int* bitdepth)
 {
   DbgLog((LOG_TRACE, 10, L"CDecCuvid::CheckH264Sequence(): Checking H264 frame for SPS"));
   CH264SequenceParser h264parser;
@@ -1160,6 +1160,8 @@ STDMETHODIMP CDecCuvid::CheckH264Sequence(const BYTE *buffer, int buflen)
       DbgLog((LOG_TRACE, 10, L"  -> SPS indicates video incompatible with CUVID, aborting (profile: %d, chroma: %d, bitdepth: %d/%d)", h264parser.sps.profile, h264parser.sps.chroma, h264parser.sps.luma_bitdepth, h264parser.sps.chroma_bitdepth));
       return E_FAIL;
     }
+    if (bitdepth)
+        *bitdepth = h264parser.sps.luma_bitdepth;
     DbgLog((LOG_TRACE, 10, L"-> Video seems compatible with CUVID"));
     return S_OK;
   }

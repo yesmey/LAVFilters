@@ -30,6 +30,7 @@ CHEVCSequenceParser::CHEVCSequenceParser()
 {
   ZeroMemory(&sps, sizeof(sps));
   sps.bitdepth = 8;
+  sps.interlaced = 1;
 }
 
 CHEVCSequenceParser::~CHEVCSequenceParser()
@@ -86,13 +87,7 @@ HRESULT CHEVCSequenceParser::ParseSPS(const BYTE *buffer, size_t buflen)
   int progressive_source_flag = parser.BitRead(1); // general_progressive_source_flag
   int interlaced_source_flag = parser.BitRead(1); // general_interlaced_source_flag
   if (progressive_source_flag && !interlaced_source_flag) {
-      sps.interlaced = 1;
-  }
-  else if (!progressive_source_flag && interlaced_source_flag) {
       sps.interlaced = 0;
-  }
-  else if (progressive_source_flag && interlaced_source_flag) {
-      return E_FAIL;
   }
   parser.BitSkip(1); // general_non_packed_constraint_flag
   parser.BitSkip(1); // general_frame_only_constraint_flag

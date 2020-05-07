@@ -708,7 +708,7 @@ STDMETHODIMP CDecCuvid::InitDecoder(AVCodecID codec, const CMediaType *pmt)
 
   BITMAPINFOHEADER* bmi = nullptr;
   videoFormatTypeHandler(pmt->Format(), pmt->FormatType(), &bmi);
-  oVideoParserParameters.ulMaxNumDecodeSurfaces = GetNumDecodeSurfaces(codec, bmi->biWidth, bmi->biHeight);
+  oVideoParserParameters.ulMaxNumDecodeSurfaces = GetNumDecodeSurfaces(cudaCodec, bmi->biWidth, bmi->biHeight);
 
   oVideoParserParameters.pExtVideoInfo = &m_VideoParserExInfo;
   CUresult oResult = cuda.cuvidCreateVideoParser(&m_hParser, &oVideoParserParameters);
@@ -1229,7 +1229,7 @@ STDMETHODIMP CDecCuvid::Decode(const BYTE *buffer, int buflen, REFERENCE_TIME rt
 
   if (m_bNeedSequenceCheck) {
     if (m_VideoDecoderInfo.CodecType == cudaVideoCodec_H264) {
-      hr = CheckH264Sequence(pCuvidPacket.payload, pCuvidPacket.payload_size);
+      hr = CheckH264Sequence(pCuvidPacket.payload, pCuvidPacket.payload_size, nullptr);
     } else if (m_VideoDecoderInfo.CodecType == cudaVideoCodec_HEVC) {
       hr = CheckHEVCSequence(pCuvidPacket.payload, pCuvidPacket.payload_size, nullptr);
     }
